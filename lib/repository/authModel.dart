@@ -15,6 +15,7 @@ class AuthModel {
     required Function(String String) codeAutoRetrievalTimeout,
   }) async {
     await authentication.verifyPhoneNumber(
+        phoneNumber: phoneNumber,
         verificationCompleted: verificationCompleted,
         verificationFailed: verificationFailed,
         codeSent: codeSent,

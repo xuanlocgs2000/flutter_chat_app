@@ -2,7 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:flutter_chat/view/screens/home_screen.dart';
 import 'package:flutter_chat/view/screens/register_screen.dart';
+import 'package:flutter_chat/view/widgets/global_widget.dart';
+import 'package:flutter_chat/view_model/login_bloc/login_envents.dart';
+import 'package:flutter_chat/view_model/login_bloc/login_states.dart';
+import 'package:flutter_chat/view_model/login_bloc/login_bloc.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({Key? key}) : super(key: key);
@@ -16,6 +22,38 @@ class _LoginScreenState extends State<LoginScreen> {
     textStyle: const TextStyle(fontSize: 20, color: Colors.white),
     backgroundColor: Colors.blue,
   );
+  late TextEditingController emailController;
+  late TextEditingController passswordController;
+  late TextEditingController otpController;
+  GlobalKey<FormState> formKey = GlobalKey<FormState>();
+  bool isPhone = false;
+  bool _obscureText = false;
+  LoginBloc loginBloc = LoginBloc(LoginScreenInitialState());
+  @override
+  void initState() {
+    emailController = TextEditingController();
+    passswordController = TextEditingController();
+    emailController.addListener(() {
+      if (emailController.text.contains('@')) {
+        setState(() {
+          isPhone = true;
+        });
+      } else {
+        setState(() {
+          isPhone = false;
+        });
+      }
+    });
+    super.initState();
+  }
+
+  @override
+  void dispose() {
+    emailController.dispose();
+    passswordController.dispose();
+    otpController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -81,8 +119,15 @@ class _LoginScreenState extends State<LoginScreen> {
         fontSize: 18,
         color: Colors.black,
       ),
+      controller: emailController,
       decoration: InputDecoration(
-        labelText: "Email",
+        // labelText: "Email",
+        hintText: "Email or phone",
+        hintStyle: TextStyle(
+          fontSize: 16,
+          color: Colors.grey,
+        ),
+
         prefixIcon: Icon(
           Icons.email,
           size: 18,
@@ -97,22 +142,34 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   Widget _buildPasswordTextField() {
-    return TextField(
-      style: TextStyle(
-        fontSize: 18,
-        color: Colors.black,
-      ),
-      obscureText: true,
-      decoration: InputDecoration(
-        labelText: "Password",
-        prefixIcon: Icon(
-          Icons.lock,
-          size: 18,
-          color: Colors.grey,
+    return Visibility(
+      visible: isPhone,
+      child: TextField(
+        style: TextStyle(
+          fontSize: 18,
+          color: Colors.black,
         ),
-        border: OutlineInputBorder(
-          borderSide: BorderSide(color: Colors.grey, width: 1),
-          borderRadius: BorderRadius.all(Radius.circular(5.0)),
+        obscureText: !_obscureText,
+        decoration: InputDecoration(
+          labelText: "Password",
+          prefixIcon: Icon(
+            Icons.lock,
+            size: 18,
+            color: Colors.grey,
+          ),
+          suffixIcon: new GestureDetector(
+            onTap: () {
+              setState(() {
+                _obscureText = !_obscureText;
+              });
+            },
+            child: new Icon(
+                _obscureText ? Icons.visibility : Icons.visibility_off),
+          ),
+          border: OutlineInputBorder(
+            borderSide: BorderSide(color: Colors.grey, width: 1),
+            borderRadius: BorderRadius.all(Radius.circular(5.0)),
+          ),
         ),
       ),
     );
@@ -132,14 +189,80 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   Widget _buildSignInButton() {
-    return SizedBox(
-      width: double.infinity,
-      height: 50,
-      child: ElevatedButton(
-        style: style,
-        onPressed: () {},
-        child: const Text('Log In'),
-      ),
+    return GlobalWidgets.button(
+      buttonText: "Login",
+      width: 400,
+      btnText: BlocConsumer<LoginBloc, LoginState>(
+          bloc: loginBloc,
+          builder: (context, state) {
+            if (state is LoginScreenLoadingState) {
+              return Center(
+                child: SizedBox(
+                    height: 50, width: 50, child: CircularProgressIndicator()),
+              );
+            } else {
+              return Text(
+                "Login",
+                style: TextStyle(
+                  fontSize: 20,
+                  color: Colors.white,
+                ),
+              );
+            }
+          },
+          listener: (context, state) {
+            if (state is LoginScreenLoadedState) {
+              Navigator.of(context)
+                  .pushReplacement(MaterialPageRoute(builder: (context) {
+                return HomeScreen();
+              }));
+            } else if (state is LoginScreenErrorState) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text(
+                    state.error,
+                    style: TextStyle(),
+                  ),
+                ),
+              );
+            } else if (state is PhoneAuthCodeSentSuccess) {
+              showDialog(
+                  context: context,
+                  builder: (context) {
+                    return AlertDialog(
+                      title: Text("OTP"),
+                      content: TextField(
+                        controller: otpController,
+                        decoration: InputDecoration(hintText: "Enter OTP"),
+                      ),
+                      actions: [
+                        ElevatedButton(
+                            onPressed: () {
+                              loginBloc.add(VerifySentOtp(
+                                  state.verificationId, otpController.text));
+                              Navigator.pop(context);
+                            },
+                            child: Text("Submit"))
+                      ],
+                    );
+                  });
+            }
+          }),
+      onTap: () {
+        if (formKey.currentState!.validate()) {
+          if (emailController.text.contains('+')) {
+            loginBloc.add(SendOtpPhoneEvent(emailController.text));
+          } else {
+            //login by email vs pass
+          }
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text("Please fill all the fields"),
+            ),
+          );
+        }
+      },
     );
   }
 

@@ -5,11 +5,11 @@ import 'package:flutter_chat/view/screens/login_screen.dart';
 import 'package:flutter_chat/view_model/login_bloc/login_envents.dart';
 import 'package:flutter_chat/view_model/login_bloc/login_states.dart';
 
-class LoginBoc extends Bloc<LoginEvents, LoginState> {
+class LoginBloc extends Bloc<LoginEvents, LoginState> {
   String LoginResult = '';
   AuthModel authModel = AuthModel();
   UserCredential? userCredential;
-  LoginBoc(super.initialState) {
+  LoginBloc(super.initialState) {
     on<SendOtpPhoneEvent>(((event, emit) async {
       emit(LoginScreenLoadingState());
       try {
